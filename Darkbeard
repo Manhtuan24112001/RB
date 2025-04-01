@@ -1,0 +1,95 @@
+local fask = task
+local AllIDs = {}
+local foundAnything = ""
+local actualHour = os.date("!*t").hour
+local Deleted = false
+
+local File = pcall(function()
+    AllIDs = game:GetService("HttpService"):JSONDecode(readfile("NotSameServers.json"))
+end)
+
+if not File then
+    table.insert(AllIDs, actualHour)
+    writefile("NotSameServers.json", game:GetService("HttpService"):JSONEncode(AllIDs))
+end
+
+function TPReturner()
+    local Site
+    Site = game:GetService("HttpService"):JSONDecode(
+        game:HttpGet("http://localhost:3000/JobData/rare-boss")
+    )
+
+    local ID = ""
+    local num = 0
+
+    -- Kiểm tra nếu API trả về danh sách "jobs"
+    if Site.jobs then
+        -- Lấy job mới nhất (ở cuối danh sách)
+        local latestJob = Site.jobs[#Site.jobs]  -- lấy phần tử cuối cùng
+        if latestJob and latestJob.bossName == "Darkbeard" then
+            local Possible = true
+            ID = tostring(latestJob.jobId)
+
+            -- Kiểm tra số lượng người chơi
+            if tonumber(latestJob.playerCount) < 12 then
+                for _, Existing in pairs(AllIDs) do
+                    if num ~= 0 then
+                        if ID == tostring(Existing) then
+                            Possible = false
+                        end
+                    else
+                        if tonumber(actualHour) ~= tonumber(Existing) then
+                            pcall(function()
+                                delfile("NotSameServers.json")
+                                AllIDs = {}
+                                table.insert(AllIDs, actualHour)
+                            end)
+                        end
+                    end
+                    num = num + 1
+                end
+
+                -- Nếu server hợp lệ, thực hiện dịch chuyển
+                if Possible == true then
+                    table.insert(AllIDs, ID)
+                    fask.wait()
+                    pcall(function()
+                        writefile("NotSameServers.json", game:GetService("HttpService"):JSONEncode(AllIDs))
+                        fask.wait()
+                        local args = {
+                            [1] = "teleport",
+                            [2] = ID
+                        }
+
+                        game:GetService("ReplicatedStorage").__ServerBrowser:InvokeServer(unpack(args))
+                    end)
+                    fask.wait(0.5)
+                end
+            end
+        end
+    end
+end
+
+local function IsBossExists(bossName)
+    -- Kiểm tra xem boss đã tồn tại trong workspace hoặc ReplicatedStorage chưa
+    if game.Workspace.Enemies:FindFirstChild(bossName) or game.ReplicatedStorage:FindFirstChild(bossName) then
+        return true
+    end
+    return false
+end
+
+function Teleport()
+    while fask.wait(1) do
+        -- Kiểm tra xem boss đã xuất hiện chưa
+        if not IsBossExists("Darkbeard") then
+            -- Nếu boss chưa xuất hiện, thực hiện teleport
+            pcall(function()
+                TPReturner()
+            end)
+        else
+            print("Boss đã xuất hiện! Không cần teleport.")
+        end
+    end
+end
+
+Teleport()  -- Bắt đầu quá trình teleport
