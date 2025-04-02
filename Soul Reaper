@@ -79,7 +79,7 @@ local function IsBossExists(bossName)
 end
 
 function Teleport()
-    while fask.wait(35) do
+    while fask.wait(20) do
         -- Kiểm tra xem boss đã xuất hiện chưa
         if not IsBossExists("Soul Reaper") then
             -- Nếu boss chưa xuất hiện, thực hiện teleport
