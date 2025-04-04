@@ -1,0 +1,126 @@
+local fask = task
+local AllIDs = {}
+local foundAnything = ""
+local actualHour = os.date("!*t").hour
+local Deleted = false
+
+local File = pcall(function()
+    AllIDs = game:GetService("HttpService"):JSONDecode(readfile("NotSameServers.json"))
+end)
+
+if not File then
+    table.insert(AllIDs, actualHour)
+    writefile("NotSameServers.json", game:GetService("HttpService"):JSONEncode(AllIDs))
+end
+
+-- Hàm kiểm tra số lượng người chơi trong game hiện tại
+local function GetPlayerCount()
+    return #game.Players:GetChildren() < 5 -- Kiểm tra nếu có hơn 4 người chơi
+end
+
+function TPReturner()
+    local Site
+    Site = game:GetService("HttpService"):JSONDecode(
+        game:HttpGet("http://localhost:3000/JobData/full-moon2")
+    )
+
+    local ID = ""
+    local num = 0
+
+    -- Kiểm tra nếu API trả về danh sách "jobs"
+    if Site.jobs then
+        for i, v in pairs(Site.jobs) do
+            local Possible = true
+            ID = tostring(v.jobId) -- Sử dụng "jobId" thay vì "id"
+
+            -- Kiểm tra số lượng người chơi trong server bên ngoài
+            if tonumber(v.playerCount) < 12 then -- Giới hạn server có ít hơn 4 người chơi
+                -- Kiểm tra số lượng người chơi trong game hiện tại (nếu có hơn 4 người chơi, bỏ qua)
+                if GetPlayerCount() then
+                    continue -- Nếu có hơn 4 người chơi trong local server, bỏ qua và tiếp tục với vòng lặp
+                end
+
+                for _, Existing in pairs(AllIDs) do
+                    if num ~= 0 then
+                        if ID == tostring(Existing) then
+                            Possible = false
+                        end
+                    else
+                        if tonumber(actualHour) ~= tonumber(Existing) then
+                            pcall(function()
+                                delfile("NotSameServers.json")
+                                AllIDs = {}
+                                table.insert(AllIDs, actualHour)
+                            end)
+                        end
+                    end
+                    num = num + 1
+                end
+
+                -- Nếu server hợp lệ, thực hiện dịch chuyển
+                if Possible == true then
+                    table.insert(AllIDs, ID)
+                    fask.wait()
+                    pcall(function()
+                        writefile("NotSameServers.json", game:GetService("HttpService"):JSONEncode(AllIDs))
+                        fask.wait()
+                        local args = {
+                            [1] = "teleport",
+                            [2] = ID
+                        }
+
+                        game:GetService("ReplicatedStorage").__ServerBrowser:InvokeServer(unpack(args))
+                    end)
+                    fask.wait(0.5)
+                end
+            end
+        end
+    end
+end
+
+-- Function to check the moon phase
+local function GetMoonPhase()
+    local moonTextures = {
+        ["http://www.roblox.com/asset/?id=9709149431"] = "Full Moon 🌕",
+        ["http://www.roblox.com/asset/?id=9709149052"] = "75%",
+        ["http://www.roblox.com/asset/?id=9709143733"] = "50%",
+        ["http://www.roblox.com/asset/?id=9709150401"] = "25%",
+        ["http://www.roblox.com/asset/?id=9709149680"] = "15%"
+    }
+
+    local textureId = game:GetService("Lighting").Sky.MoonTextureId
+
+    -- Check if the textureId exists in the table
+    if moonTextures[textureId] then
+        print("Current Moon Phase: " .. moonTextures[textureId])
+        return moonTextures[textureId]
+    else
+        print("Unknown Moon Phase")
+        return nil
+    end
+end
+
+-- Function to perform the 'hop' action
+local function Hop()
+    print("Moon phase is not Full Moon 🌕 or 75%. Triggering hop action...")
+    -- Add your hop logic here (e.g., teleport or other action)
+end
+
+-- Main Teleport Function
+function Teleport()
+    while fask.wait(10) do
+        -- Check the current moon phase
+        local currentMoonPhase = GetMoonPhase()
+
+        -- If moon phase is neither "Full Moon 🌕" nor "75%", trigger the hop action
+        if currentMoonPhase and currentMoonPhase ~= "Full Moon 🌕" and currentMoonPhase ~= "75%" then
+            Hop()  -- Trigger the hop action
+        end
+
+        pcall(function()
+            TPReturner()
+        end)
+    end
+end
+
+Teleport()
