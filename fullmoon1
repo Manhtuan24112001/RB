@@ -113,7 +113,7 @@ function Teleport()
         local currentMoonPhase = GetMoonPhase()
 
         -- If moon phase is neither "Full Moon 🌕" nor "75%", trigger the hop action
-        if currentMoonPhase and currentMoonPhase ~= "Full Moon 🌕" and currentMoonPhase ~= "75%" then
+        if currentMoonPhase and currentMoonPhase ~= "Full Moon 🌕" then
             Hop()  -- Trigger the hop action
         end
 
