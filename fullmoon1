@@ -15,7 +15,7 @@ end
 
 -- Hàm kiểm tra số lượng người chơi trong game hiện tại
 local function GetPlayerCount()
-    return #game.Players:GetChildren() < 5 -- Kiểm tra nếu có hơn 4 người chơi
+    return #game.Players:GetChildren() < 4 -- Kiểm tra nếu có hơn 4 người chơi
 end
 
 function TPReturner()
