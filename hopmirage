@@ -1,0 +1,93 @@
+local task = task
+local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
+
+local AllIDs = {}
+local actualHour = os.date("!*t").hour
+
+-- Đọc file NotSameServers.json nếu tồn tại
+local File = pcall(function()
+    AllIDs = HttpService:JSONDecode(readfile("NotSameServers.json"))
+end)
+
+-- Nếu chưa có file, tạo mới
+if not File then
+    table.insert(AllIDs, actualHour)
+    writefile("NotSameServers.json", HttpService:JSONEncode(AllIDs))
+end
+
+-- Kiểm tra Mirage Island
+local function IsMirageIslandExists()
+    return Workspace:FindFirstChild("Map") and Workspace.Map:FindFirstChild("MysticIsland") ~= nil
+end
+
+-- Hàm xử lý teleport
+local function TPReturner()
+    local success, Site = pcall(function()
+        return HttpService:JSONDecode(game:HttpGet("http://localhost:3000/JobData/mirage"))
+    end)
+
+    if not success then return end
+
+    if Site.jobs then
+        local latestJob = Site.jobs[#Site.jobs]
+        local ID = tostring(latestJob.jobId)
+        local playerCount = tonumber(latestJob.playerCount)
+        local Possible = true
+        local num = 0
+
+        if playerCount < 12 then
+            for _, Existing in pairs(AllIDs) do
+                if num ~= 0 then
+                    if ID == tostring(Existing) then
+                        Possible = false
+                        break
+                    end
+                else
+                    if tonumber(actualHour) ~= tonumber(Existing) then
+                        pcall(function()
+                            delfile("NotSameServers.json")
+                            AllIDs = {}
+                            table.insert(AllIDs, actualHour)
+                        end)
+                    end
+                end
+                num += 1
+            end
+
+            if Possible then
+                table.insert(AllIDs, ID)
+                pcall(function()
+                    writefile("NotSameServers.json", HttpService:JSONEncode(AllIDs))
+                    task.wait()
+                    local args = {
+                        [1] = "teleport",
+                        [2] = ID
+                    }
+                    ReplicatedStorage.__ServerBrowser:InvokeServer(unpack(args))
+                end)
+                task.wait(0.5)
+            end
+        end
+    end
+end
+
+-- Vòng lặp kiểm tra và xử lý Mirage
+local function Teleport()
+    while task.wait(5) do
+        local hour = tonumber(Lighting.TimeOfDay:sub(1, 2))
+        local hasMirage = IsMirageIslandExists()
+
+        if hasMirage then
+            if hour >= 6 and hour < 18 then
+                TPReturner()
+            end
+        else
+            TPReturner()
+        end
+    end
+end
+
+Teleport()
